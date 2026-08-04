@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { createUserSchema, createClassSchema } from "@/lib/validations";
 import { User, Class, Role } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,6 +61,8 @@ export default function AdminDashboard() {
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = createUserSchema.safeParse(newUser);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     try {
       const { class_id, ...userData } = newUser;
@@ -75,7 +78,7 @@ export default function AdminDashboard() {
       setNewUser({ name: "", email: "", password: "", role: "student", class_id: "" });
       fetchAll();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error creating user");
+      toast.error(err.message || "Error creating user");
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +93,8 @@ export default function AdminDashboard() {
 
   const createClass = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = createClassSchema.safeParse(newClass);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     try {
       await api.post("/admin/classes", newClass);
@@ -97,8 +102,8 @@ export default function AdminDashboard() {
       setShowClassModal(false);
       setNewClass({ name: "", subject: "" });
       fetchAll();
-    } catch {
-      toast.error("Error creating class");
+    } catch (err: any) {
+      toast.error(err.message || "Error creating class");
     } finally {
       setSubmitting(false);
     }

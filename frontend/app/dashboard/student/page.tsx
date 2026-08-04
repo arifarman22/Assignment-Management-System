@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { submissionSchema } from "@/lib/validations";
 import { Assignment, Submission } from "@/types";
 import { formatDateTime, getDeadlineStatus } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -62,7 +63,9 @@ export default function StudentDashboard() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAssignment || !answer.trim()) return;
+    if (!selectedAssignment) return;
+    const result = submissionSchema.safeParse({ answer });
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     const existing = getSubmission(selectedAssignment.id);
     try {
@@ -76,7 +79,7 @@ export default function StudentDashboard() {
       setSelectedAssignment(null);
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error submitting");
+      toast.error(err.message || "Error submitting");
     } finally {
       setSubmitting(false);
     }

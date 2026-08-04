@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { assignmentSchema, gradeSchema } from "@/lib/validations";
 import { Assignment, Class, Submission } from "@/types";
 import { formatDateTime, getDeadlineStatus } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +23,49 @@ import {
 } from "lucide-react";
 
 const emptyForm = { title: "", description: "", deadline: "", max_marks: "", status: "draft", allow_resubmit: true, class_id: "" };
+type FormState = typeof emptyForm;
+
+function AssignmentForm({ form, setForm, submitting, classes, onSubmit, label, onCancel }: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  submitting: boolean;
+  classes: Class[];
+  onSubmit: (e: React.FormEvent) => void;
+  label: string;
+  onCancel: () => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Input label="Assignment Title" placeholder="e.g. Chapter 5 Review" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+      <Textarea label="Description" placeholder="Describe the assignment requirements…" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Deadline" type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
+        <Input label="Max Marks" type="number" placeholder="100" value={form.max_marks} onChange={(e) => setForm({ ...form, max_marks: e.target.value })} required />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </Select>
+        <Select label="Class" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} required>
+          <option value="">— Select class —</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name} – {c.subject}</option>)}
+        </Select>
+      </div>
+      <label className="flex items-center gap-2.5 cursor-pointer group">
+        <div className={`w-9 h-5 rounded-full transition-colors relative ${form.allow_resubmit ? "bg-blue-600" : "bg-slate-200"}`}
+          onClick={() => setForm({ ...form, allow_resubmit: !form.allow_resubmit })}>
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.allow_resubmit ? "translate-x-4" : "translate-x-0.5"}`} />
+        </div>
+        <span className="text-sm text-slate-700">Allow resubmission</span>
+      </label>
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" variant="primary" loading={submitting} className="flex-1">{label}</Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
 
 export default function TeacherDashboard() {
   const { auth } = useAuth();
@@ -66,6 +110,8 @@ export default function TeacherDashboard() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = assignmentSchema.safeParse(form);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     try {
       await api.post("/teacher/assignments", {
@@ -78,7 +124,7 @@ export default function TeacherDashboard() {
       setForm(emptyForm);
       fetchAll();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error creating assignment");
+      toast.error(err.message || "Error creating assignment");
     } finally {
       setSubmitting(false);
     }
@@ -87,6 +133,8 @@ export default function TeacherDashboard() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAssignment) return;
+    const result = assignmentSchema.safeParse(form);
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     try {
       await api.patch(`/teacher/assignments/${editingAssignment.id}`, {
@@ -97,7 +145,7 @@ export default function TeacherDashboard() {
       setEditingAssignment(null);
       fetchAll();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error");
+      toast.error(err.message || "Error");
     } finally {
       setSubmitting(false);
     }
@@ -127,6 +175,8 @@ export default function TeacherDashboard() {
   const handleGrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gradingSubmission) return;
+    const result = gradeSchema.safeParse({ ...gradeForm, marks: parseFloat(gradeForm.marks) });
+    if (!result.success) { toast.error(result.error.issues[0].message); return; }
     setSubmitting(true);
     try {
       await api.patch(`/teacher/submissions/${gradingSubmission.id}/grade`, {
@@ -138,7 +188,7 @@ export default function TeacherDashboard() {
       setGradingSubmission(null);
       if (viewingAssignment) fetchSubmissions(viewingAssignment.id);
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error");
+      toast.error(err.message || "Error");
     } finally {
       setSubmitting(false);
     }
@@ -155,38 +205,6 @@ export default function TeacherDashboard() {
     if (s === "soon") return "text-amber-400";
     return "text-slate-400";
   };
-
-  const AssignmentForm = ({ onSubmit, label }: { onSubmit: (e: React.FormEvent) => void; label: string }) => (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <Input label="Assignment Title" placeholder="e.g. Chapter 5 Review" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-      <Textarea label="Description" placeholder="Describe the assignment requirements…" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
-      <div className="grid grid-cols-2 gap-3">
-        <Input label="Deadline" type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
-        <Input label="Max Marks" type="number" placeholder="100" value={form.max_marks} onChange={(e) => setForm({ ...form, max_marks: e.target.value })} required />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </Select>
-        <Select label="Class" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} required>
-          <option value="">— Select class —</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.name} – {c.subject}</option>)}
-        </Select>
-      </div>
-      <label className="flex items-center gap-2.5 cursor-pointer group">
-        <div className={`w-9 h-5 rounded-full transition-colors relative ${form.allow_resubmit ? "bg-blue-600" : "bg-slate-200"}`}
-          onClick={() => setForm({ ...form, allow_resubmit: !form.allow_resubmit })}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.allow_resubmit ? "translate-x-4" : "translate-x-0.5"}`} />
-        </div>
-        <span className="text-sm text-slate-700">Allow resubmission</span>
-      </label>
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" variant="primary" loading={submitting} className="flex-1">{label}</Button>
-        <Button type="button" variant="secondary" onClick={() => { setShowCreate(false); setEditingAssignment(null); }}>Cancel</Button>
-      </div>
-    </form>
-  );
 
   return (
     <DashboardShell title="Teacher Dashboard" subtitle={`Welcome back, ${auth?.name}`}>
@@ -277,12 +295,12 @@ export default function TeacherDashboard() {
 
       {/* Create Assignment Modal */}
       <Dialog open={showCreate} onClose={() => setShowCreate(false)} title="Create Assignment" description="Fill in the details for your new assignment">
-        <AssignmentForm onSubmit={handleCreate} label="Create Assignment" />
+        <AssignmentForm form={form} setForm={setForm} submitting={submitting} classes={classes} onSubmit={handleCreate} label="Create Assignment" onCancel={() => setShowCreate(false)} />
       </Dialog>
 
       {/* Edit Assignment Modal */}
       <Dialog open={!!editingAssignment} onClose={() => setEditingAssignment(null)} title="Edit Assignment" description="Update the assignment details">
-        <AssignmentForm onSubmit={handleUpdate} label="Save Changes" />
+        <AssignmentForm form={form} setForm={setForm} submitting={submitting} classes={classes} onSubmit={handleUpdate} label="Save Changes" onCancel={() => setEditingAssignment(null)} />
       </Dialog>
 
       {/* Submissions Modal */}

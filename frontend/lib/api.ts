@@ -14,4 +14,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const status = error.response?.status;
+    if (status === 401) {
+      localStorage.removeItem("auth");
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
+    }
+    if (status === 429) {
+      error.message = "Too many requests. Please slow down.";
+    }
+    // Surface Pydantic validation errors as a readable string
+    const detail = error.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      error.message = detail.map((d: any) => d.msg).join(", ");
+    } else if (typeof detail === "string") {
+      error.message = detail;
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
