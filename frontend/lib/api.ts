@@ -1,7 +1,9 @@
 import axios from "axios";
 import { AuthUser } from "@/types";
 
-const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000" });
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "",
+});
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
