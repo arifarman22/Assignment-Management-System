@@ -27,6 +27,8 @@ app.add_middleware(SlowAPIMiddleware)
 ALLOWED_ORIGINS = ["http://localhost:3000"]
 if os.getenv("FRONTEND_URL"):
     ALLOWED_ORIGINS.append(os.getenv("FRONTEND_URL"))
+# Allow all Vercel preview deployments for this project
+ALLOWED_ORIGINS.append("https://assignment-management-system-nw7f.vercel.app")
 
 app.add_middleware(
     CORSMiddleware,
