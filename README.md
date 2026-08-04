@@ -175,6 +175,8 @@ cd backend
 pytest app/tests/ -v
 ```
 
+> Tests use SQLite in-memory — no PostgreSQL required to run tests.
+
 ---
 
 ## Demo Accounts
@@ -242,3 +244,22 @@ Next.js rewrites in `next.config.ts` proxy all `/auth/*`, `/admin/*`, `/teacher/
 | PATCH | `/student/submissions/{id}` | Student | Update submission (before deadline if allowed) |
 | GET | `/student/submissions` | Student | View own submissions with grades & feedback |
 | GET | `/health` | Any | Health check |
+
+---
+
+## Assumptions
+
+- A student must be enrolled in at least one class by an admin before they can see any assignments.
+- A teacher must be assigned to a class by an admin before they can create assignments for it.
+- Submission updates are only allowed if `allow_resubmit=true` on the assignment and the submission has not been graded yet.
+- Deadlines are stored and compared in UTC.
+- Passwords are hashed with bcrypt — plain-text passwords are never stored.
+- JWT tokens expire after 60 minutes (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`).
+
+## Known Limitations
+
+- No email verification or password reset flow.
+- No pagination on list endpoints — all records are returned at once.
+- Rate limiting uses in-memory storage and resets on server restart (not suitable for multi-instance deployments without a Redis backend).
+- Vercel serverless functions have a cold-start delay on the free tier.
+- File/attachment uploads for submissions are not supported — answers are plain text only.

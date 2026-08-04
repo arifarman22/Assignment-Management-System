@@ -100,7 +100,7 @@ def test_unauthenticated_access(client):
 def test_admin_create_user(client, db):
     seed_users(db)
     token = login(client, "admin@test.com", "admin123")
-    r = client.post("/admin/users", json={"name": "New", "email": "new@test.com", "password": "pass123", "role": "student"},
+    r = client.post("/admin/users", json={"name": "New User", "email": "new@test.com", "password": "pass1234", "role": "student"},
                     headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert r.json()["email"] == "new@test.com"
@@ -131,22 +131,22 @@ def test_teacher_create_assignment(client, db):
     class_id, teacher, _ = setup_class_with_teacher_and_student(client, db)
     token = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW1", "description": "Do it", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 100, "status": "published", "allow_resubmit": True, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json()["title"] == "HW1"
+    assert r.json()["title"] == "Homework 1"
 
 
 def test_teacher_cannot_create_assignment_for_unassigned_class(client, db):
     seed_users(db)
     token_admin = login(client, "admin@test.com", "admin123")
-    r = client.post("/admin/classes", json={"name": "Other", "subject": "Bio"},
+    r = client.post("/admin/classes", json={"name": "Other Class", "subject": "Biology"},
                     headers={"Authorization": f"Bearer {token_admin}"})
     class_id = r.json()["id"]
     token = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW", "description": "x", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 50, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403
@@ -156,7 +156,7 @@ def test_student_submit_and_view(client, db):
     class_id, _, student = setup_class_with_teacher_and_student(client, db)
     token_t = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW1", "description": "Do it", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 100, "status": "published", "allow_resubmit": True, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token_t}"})
     assignment_id = r.json()["id"]
@@ -175,15 +175,15 @@ def test_student_cannot_submit_twice(client, db):
     class_id, _, _ = setup_class_with_teacher_and_student(client, db)
     token_t = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW1", "description": "Do it", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 100, "status": "published", "allow_resubmit": True, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token_t}"})
     assignment_id = r.json()["id"]
 
     token_s = login(client, "student@test.com", "student123")
-    client.post("/student/submissions", json={"answer": "First", "assignment_id": assignment_id},
+    client.post("/student/submissions", json={"answer": "First answer", "assignment_id": assignment_id},
                 headers={"Authorization": f"Bearer {token_s}"})
-    r = client.post("/student/submissions", json={"answer": "Second", "assignment_id": assignment_id},
+    r = client.post("/student/submissions", json={"answer": "Second answer", "assignment_id": assignment_id},
                     headers={"Authorization": f"Bearer {token_s}"})
     assert r.status_code == 400
 
@@ -192,7 +192,7 @@ def test_teacher_grade_submission(client, db):
     class_id, _, _ = setup_class_with_teacher_and_student(client, db)
     token_t = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW1", "description": "Do it", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 100, "status": "published", "allow_resubmit": True, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token_t}"})
     assignment_id = r.json()["id"]
@@ -214,18 +214,18 @@ def test_grade_exceeds_max_marks(client, db):
     class_id, _, _ = setup_class_with_teacher_and_student(client, db)
     token_t = login(client, "teacher@test.com", "teacher123")
     r = client.post("/teacher/assignments", json={
-        "title": "HW1", "description": "Do it", "deadline": "2099-12-31T23:59:00",
+        "title": "Homework 1", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 50, "status": "published", "allow_resubmit": True, "class_id": class_id
     }, headers={"Authorization": f"Bearer {token_t}"})
     assignment_id = r.json()["id"]
 
     token_s = login(client, "student@test.com", "student123")
-    r = client.post("/student/submissions", json={"answer": "answer", "assignment_id": assignment_id},
+    r = client.post("/student/submissions", json={"answer": "My answer here", "assignment_id": assignment_id},
                     headers={"Authorization": f"Bearer {token_s}"})
     submission_id = r.json()["id"]
 
     r = client.patch(f"/teacher/submissions/{submission_id}/grade",
-                     json={"marks": 100, "feedback": "", "status": "graded"},
+                     json={"marks": 100, "feedback": "Too high", "status": "graded"},
                      headers={"Authorization": f"Bearer {token_t}"})
     assert r.status_code == 400
 
@@ -234,7 +234,7 @@ def test_student_cannot_see_draft_assignment(client, db):
     class_id, _, _ = setup_class_with_teacher_and_student(client, db)
     token_t = login(client, "teacher@test.com", "teacher123")
     client.post("/teacher/assignments", json={
-        "title": "Draft HW", "description": "x", "deadline": "2099-12-31T23:59:00",
+        "title": "Draft Homework", "description": "Complete this assignment carefully", "deadline": "2099-12-31T23:59:00",
         "max_marks": 100, "status": "draft", "class_id": class_id
     }, headers={"Authorization": f"Bearer {token_t}"})
 
