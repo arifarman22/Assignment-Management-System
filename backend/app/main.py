@@ -7,6 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from mangum import Mangum
 from app.database import engine
 from app.models.models import Base
 from app.routes import auth, admin, teacher, student
@@ -56,3 +57,5 @@ app.include_router(student.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+handler = Mangum(app, lifespan="off")
